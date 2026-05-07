@@ -3,7 +3,7 @@ import { MapPin, Navigation2, Copy, ExternalLink, X } from 'lucide-react'
 import { useMapStore } from '@/lib/store/mapStore'
 
 export default function PlaceCard() {
-  const { selectedPlace, setSelectedPlace, setOrigin, setDestination, setDirectionsOpen, setActiveTab } = useMapStore()
+  const { selectedPlace, setSelectedPlace, setDestination } = useMapStore()
   if (!selectedPlace) return null
 
   const copyCoords = () => {
@@ -13,8 +13,6 @@ export default function PlaceCard() {
 
   const getDirections = () => {
     setDestination(selectedPlace)
-    setDirectionsOpen(true)
-    setActiveTab('directions')
   }
 
   const share = () => {
@@ -39,15 +37,10 @@ export default function PlaceCard() {
           <X size={14} />
         </button>
       </div>
-
-      <div className="text-xs text-gray-400 mb-3 leading-relaxed">
-        {selectedPlace.displayName}
-      </div>
-
+      <div className="text-xs text-gray-400 mb-3 leading-relaxed">{selectedPlace.displayName}</div>
       <div className="text-xs text-gray-500 font-mono mb-3">
         {selectedPlace.lat.toFixed(6)}, {selectedPlace.lon.toFixed(6)}
       </div>
-
       <div className="flex gap-2">
         <button
           onClick={getDirections}

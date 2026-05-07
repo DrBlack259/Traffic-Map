@@ -15,7 +15,6 @@ interface MapStore {
   destination: SearchResult | null
   transportMode: TransportMode
   route: Route | null
-  directionsOpen: boolean
   isRoutingLoading: boolean
 
   trafficFlowVisible: boolean
@@ -23,13 +22,20 @@ interface MapStore {
   incidents: TrafficIncident[]
   incidentsLoading: boolean
 
-  sidebarOpen: boolean
-  activeTab: 'map' | 'directions' | 'traffic' | 'places'
   nearbyPlaces: POI[]
   nearbyCategory: string
   userLocation: [number, number] | null
   measureMode: boolean
   measurePoints: MeasurePoint[]
+
+  // UI flow state
+  searchingFor: 'destination' | 'origin' | null
+  showLayerPicker: boolean
+
+  // Legacy compat (not rendered but referenced by old components)
+  activeTab: 'map' | 'directions' | 'traffic' | 'places'
+  sidebarOpen: boolean
+  directionsOpen: boolean
 
   toast: { message: string; type: 'error' | 'success' | 'info' } | null
 
@@ -44,21 +50,24 @@ interface MapStore {
   setDestination: (place: SearchResult | null) => void
   setTransportMode: (mode: TransportMode) => void
   setRoute: (route: Route | null) => void
-  setDirectionsOpen: (open: boolean) => void
   setIsRoutingLoading: (v: boolean) => void
   setTrafficFlowVisible: (v: boolean) => void
   setTrafficIncidentsVisible: (v: boolean) => void
   setIncidents: (incidents: TrafficIncident[]) => void
   setIncidentsLoading: (v: boolean) => void
-  setSidebarOpen: (open: boolean) => void
-  setActiveTab: (tab: 'map' | 'directions' | 'traffic' | 'places') => void
   setNearbyPlaces: (places: POI[]) => void
   setNearbyCategory: (cat: string) => void
   setUserLocation: (loc: [number, number] | null) => void
   setMeasureMode: (v: boolean) => void
   addMeasurePoint: (pt: MeasurePoint) => void
   clearMeasurePoints: () => void
+  setSearchingFor: (v: 'destination' | 'origin' | null) => void
+  setShowLayerPicker: (v: boolean) => void
   setToast: (toast: { message: string; type: 'error' | 'success' | 'info' } | null) => void
+  clearRoute: () => void
+  setActiveTab: (tab: 'map' | 'directions' | 'traffic' | 'places') => void
+  setSidebarOpen: (v: boolean) => void
+  setDirectionsOpen: (v: boolean) => void
 }
 
 export const useMapStore = create<MapStore>((set) => ({
@@ -75,7 +84,6 @@ export const useMapStore = create<MapStore>((set) => ({
   destination: null,
   transportMode: 'driving',
   route: null,
-  directionsOpen: false,
   isRoutingLoading: false,
 
   trafficFlowVisible: true,
@@ -83,13 +91,17 @@ export const useMapStore = create<MapStore>((set) => ({
   incidents: [],
   incidentsLoading: false,
 
-  sidebarOpen: true,
-  activeTab: 'map',
   nearbyPlaces: [],
   nearbyCategory: '',
   userLocation: null,
   measureMode: false,
   measurePoints: [],
+
+  searchingFor: null,
+  showLayerPicker: false,
+  activeTab: 'map',
+  sidebarOpen: false,
+  directionsOpen: false,
 
   toast: null,
 
@@ -104,19 +116,22 @@ export const useMapStore = create<MapStore>((set) => ({
   setDestination: (destination) => set({ destination }),
   setTransportMode: (transportMode) => set({ transportMode }),
   setRoute: (route) => set({ route }),
-  setDirectionsOpen: (directionsOpen) => set({ directionsOpen }),
   setIsRoutingLoading: (isRoutingLoading) => set({ isRoutingLoading }),
   setTrafficFlowVisible: (trafficFlowVisible) => set({ trafficFlowVisible }),
   setTrafficIncidentsVisible: (trafficIncidentsVisible) => set({ trafficIncidentsVisible }),
   setIncidents: (incidents) => set({ incidents }),
   setIncidentsLoading: (incidentsLoading) => set({ incidentsLoading }),
-  setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),
-  setActiveTab: (activeTab) => set({ activeTab }),
   setNearbyPlaces: (nearbyPlaces) => set({ nearbyPlaces }),
   setNearbyCategory: (nearbyCategory) => set({ nearbyCategory }),
   setUserLocation: (userLocation) => set({ userLocation }),
   setMeasureMode: (measureMode) => set({ measureMode }),
   addMeasurePoint: (pt) => set((s) => ({ measurePoints: [...s.measurePoints, pt] })),
   clearMeasurePoints: () => set({ measurePoints: [] }),
+  setSearchingFor: (searchingFor) => set({ searchingFor }),
+  setShowLayerPicker: (showLayerPicker) => set({ showLayerPicker }),
   setToast: (toast) => set({ toast }),
+  clearRoute: () => set({ route: null, origin: null, destination: null, searchResults: [], searchQuery: '' }),
+  setActiveTab: (activeTab) => set({ activeTab }),
+  setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),
+  setDirectionsOpen: (directionsOpen) => set({ directionsOpen }),
 }))

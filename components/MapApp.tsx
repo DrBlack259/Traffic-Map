@@ -1,18 +1,29 @@
 'use client'
 import { useEffect } from 'react'
 import MapView from '@/components/map/MapView'
-import TopNav from '@/components/ui/TopNav'
-import Sidebar from '@/components/sidebar/Sidebar'
-import BottomSheet from '@/components/ui/BottomSheet'
+import FloatingSearchBar from '@/components/ui/FloatingSearchBar'
+import MapControls from '@/components/controls/MapControls'
+import SearchOverlay from '@/components/ui/SearchOverlay'
+import WhereToCard from '@/components/ui/WhereToCard'
+import RouteCard from '@/components/ui/RouteCard'
+import LayerPicker from '@/components/ui/LayerPicker'
+import RoutingLoader from '@/components/ui/RoutingLoader'
 import Toast from '@/components/ui/Toast'
 import { useMapStore } from '@/lib/store/mapStore'
 import { useTraffic } from '@/lib/hooks/useTraffic'
+import { useDirections } from '@/lib/hooks/useDirections'
 
 export default function MapApp() {
-  const { sidebarOpen } = useMapStore()
+  const { userLocation, route, searchingFor, origin, destination, showLayerPicker, transportMode } = useMapStore()
   useTraffic()
+  const { fetchRoute } = useDirections()
 
-  // Read URL params for shared location
+  // Auto-fetch route when both endpoints are set, or mode changes
+  useEffect(() => {
+    if (origin && destination) fetchRoute()
+  }, [origin, destination, transportMode]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Read shared URL params on load
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const lat = params.get('lat')
@@ -24,31 +35,35 @@ export default function MapApp() {
     }
   }, [])
 
+  const showWhereToCard = !!userLocation && !route && !searchingFor
+  const showRouteCard = !!route && !searchingFor
+
   return (
-    <div className="flex flex-col h-screen bg-[#0d0d0d] overflow-hidden">
-      <TopNav />
-      <div className="flex flex-1 overflow-hidden relative">
-        {/* Desktop sidebar */}
-        <aside
-          className={`
-            hidden lg:flex flex-col w-[400px] flex-shrink-0 border-r border-white/8
-            glass transition-all duration-300 overflow-hidden z-10
-            ${sidebarOpen ? 'translate-x-0' : '-translate-x-full w-0'}
-          `}
-        >
-          <Sidebar />
-        </aside>
+    <div className="w-full h-screen relative overflow-hidden bg-[#0d0d0d]">
+      {/* Full-screen map */}
+      <MapView />
 
-        {/* Map fills remaining space */}
-        <div className="flex-1 relative">
-          <MapView />
-        </div>
+      {/* Floating top search bar */}
+      <FloatingSearchBar />
 
-        {/* Mobile bottom sheet */}
-        <div className="lg:hidden">
-          <BottomSheet />
-        </div>
-      </div>
+      {/* Right-side map controls */}
+      <MapControls />
+
+      {/* Layer style picker */}
+      {showLayerPicker && <LayerPicker />}
+
+      {/* Full-screen search overlay */}
+      {searchingFor && <SearchOverlay />}
+
+      {/* Bottom: "Where to?" card after GPS fix */}
+      {showWhereToCard && <WhereToCard />}
+
+      {/* Bottom: Route summary card */}
+      {showRouteCard && <RouteCard />}
+
+      {/* Routing spinner */}
+      <RoutingLoader />
+
       <Toast />
     </div>
   )

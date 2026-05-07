@@ -29,7 +29,7 @@ const TILE_ATTRIBUTIONS = {
 }
 
 function MapEventHandler() {
-  const { setCenter, setZoom, setSelectedPlace, measureMode, addMeasurePoint, setToast } = useMapStore()
+  const { setCenter, setZoom, measureMode, addMeasurePoint, setDestination, searchingFor, route } = useMapStore()
 
   useMapEvents({
     moveend: (e) => {
@@ -42,14 +42,18 @@ function MapEventHandler() {
         addMeasurePoint({ lat: e.latlng.lat, lon: e.latlng.lng })
         return
       }
+      // If searchOverlay is open or route already set, ignore map clicks
+      if (searchingFor || route) return
+
       try {
         const res = await fetch(`/api/reverse?lat=${e.latlng.lat}&lon=${e.latlng.lng}`)
         if (!res.ok) return
         const place = await res.json()
-        if (place) setSelectedPlace(place)
-      } catch {
-        setToast({ message: 'Could not fetch location info', type: 'error' })
-      }
+        if (place) {
+          // Long-tap / click on map sets it as destination directly
+          setDestination(place)
+        }
+      } catch { /* silent */ }
     },
   })
   return null
@@ -57,7 +61,7 @@ function MapEventHandler() {
 
 function MapSyncController() {
   const map = useMap()
-  const { zoom, userLocation, selectedPlace, route } = useMapStore()
+  const { zoom, userLocation, destination, route } = useMapStore()
   const prevZoom = useRef<number | null>(null)
   const prevUserLoc = useRef<string | null>(null)
   const prevPlace = useRef<string | null>(null)
@@ -80,13 +84,13 @@ function MapSyncController() {
   }, [userLocation, map])
 
   useEffect(() => {
-    if (!selectedPlace) return
-    const key = selectedPlace.id
+    if (!destination) return
+    const key = destination.id
     if (prevPlace.current !== key) {
-      map.flyTo([selectedPlace.lat, selectedPlace.lon], 15, { duration: 1 })
+      map.flyTo([destination.lat, destination.lon], 14, { duration: 1 })
       prevPlace.current = key
     }
-  }, [selectedPlace, map])
+  }, [destination, map])
 
   useEffect(() => {
     if (!route) return
