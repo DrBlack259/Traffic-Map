@@ -1,38 +1,56 @@
 'use client'
 import { useCallback } from 'react'
 import { useMapStore } from '@/lib/store/mapStore'
+import type { Route } from '@/lib/types'
 
 export function useDirections() {
   const {
-    origin, destination, transportMode,
-    setRoute, setIsRoutingLoading, setToast,
-    trafficFlowVisible, setTrafficFlowVisible,
-    trafficIncidentsVisible, setTrafficIncidentsVisible,
+    origin, destination, waypoints, transportMode,
+    setRoute, setRouteAlternatives, setSelectedRouteIndex,
+    setIsRoutingLoading, setToast,
+    setTrafficFlowVisible, setTrafficIncidentsVisible,
   } = useMapStore()
 
   const fetchRoute = useCallback(async () => {
     if (!origin || !destination) return
     setIsRoutingLoading(true)
     setRoute(null)
+    setRouteAlternatives([])
 
-    // Auto-enable traffic when routing
-    if (!trafficFlowVisible) setTrafficFlowVisible(true)
-    if (!trafficIncidentsVisible) setTrafficIncidentsVisible(true)
+    // Auto-enable traffic overlay
+    setTrafficFlowVisible(true)
+    setTrafficIncidentsVisible(true)
 
     try {
-      const res = await fetch(
-        `/api/route?olat=${origin.lat}&olon=${origin.lon}&dlat=${destination.lat}&dlon=${destination.lon}&mode=${transportMode}`
-      )
+      const wpParams = waypoints.map(w => `wp=${w.lat},${w.lon}`).join('&')
+      const url = `/api/route?olat=${origin.lat}&olon=${origin.lon}&dlat=${destination.lat}&dlon=${destination.lon}&mode=${transportMode}${wpParams ? '&' + wpParams : ''}`
+
+      const res = await fetch(url)
       if (!res.ok) throw new Error('Routing failed')
-      const data = await res.json()
-      if (data?.error) throw new Error(data.error)
-      setRoute(data)
+
+      const alternatives: Route[] = await res.json()
+      if (!alternatives?.length) throw new Error('No route found')
+
+      setRouteAlternatives(alternatives)
+      setSelectedRouteIndex(0)
+      setRoute(alternatives[0])
     } catch {
       setToast({ message: 'Could not find a route. Try a different destination.', type: 'error' })
     } finally {
       setIsRoutingLoading(false)
     }
-  }, [origin, destination, transportMode, setRoute, setIsRoutingLoading, setToast, trafficFlowVisible, trafficIncidentsVisible, setTrafficFlowVisible, setTrafficIncidentsVisible])
+  }, [origin, destination, waypoints, transportMode,
+    setRoute, setRouteAlternatives, setSelectedRouteIndex,
+    setIsRoutingLoading, setToast,
+    setTrafficFlowVisible, setTrafficIncidentsVisible])
 
-  return { fetchRoute }
+  const selectAlternative = useCallback((index: number) => {
+    const alts = useMapStore.getState().routeAlternatives
+    if (alts[index]) {
+      useMapStore.getState().setRoute(alts[index])
+      useMapStore.getState().setSelectedRouteIndex(index)
+    }
+  }, [])
+
+  return { fetchRoute, selectAlternative }
 }

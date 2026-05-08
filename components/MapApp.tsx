@@ -1,5 +1,5 @@
 'use client'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import MapView from '@/components/map/MapView'
 import FloatingSearchBar from '@/components/ui/FloatingSearchBar'
 import MapControls from '@/components/controls/MapControls'
@@ -9,23 +9,31 @@ import RouteCard from '@/components/ui/RouteCard'
 import LayerPicker from '@/components/ui/LayerPicker'
 import RoutingLoader from '@/components/ui/RoutingLoader'
 import Toast from '@/components/ui/Toast'
+import WaypointManager from '@/components/ui/WaypointManager'
+import LocationShareViewer from '@/components/ui/LocationShareViewer'
 import { useMapStore } from '@/lib/store/mapStore'
 import { useTraffic } from '@/lib/hooks/useTraffic'
 import { useDirections } from '@/lib/hooks/useDirections'
 
 export default function MapApp() {
-  const { userLocation, route, searchingFor, origin, destination, showLayerPicker, transportMode } = useMapStore()
+  const {
+    userLocation, route, searchingFor, origin, destination,
+    showLayerPicker, transportMode, showWaypointManager,
+  } = useMapStore()
   useTraffic()
   const { fetchRoute } = useDirections()
+  const [viewingShareId, setViewingShareId] = useState<string | null>(null)
 
   // Auto-fetch route when both endpoints are set, or mode changes
   useEffect(() => {
     if (origin && destination) fetchRoute()
   }, [origin, destination, transportMode]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Read shared URL params on load
+  // Read URL params on load
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
+
+    // Map position params
     const lat = params.get('lat')
     const lon = params.get('lon')
     const zoom = params.get('z')
@@ -33,6 +41,10 @@ export default function MapApp() {
       useMapStore.getState().setCenter([parseFloat(lat), parseFloat(lon)])
       if (zoom) useMapStore.getState().setZoom(parseInt(zoom))
     }
+
+    // Live share viewer
+    const shareId = params.get('share')
+    if (shareId) setViewingShareId(shareId)
   }, [])
 
   const showWhereToCard = !!userLocation && !route && !searchingFor
@@ -60,6 +72,23 @@ export default function MapApp() {
 
       {/* Bottom: Route summary card */}
       {showRouteCard && <RouteCard />}
+
+      {/* Waypoint manager modal */}
+      {showWaypointManager && <WaypointManager />}
+
+      {/* Live location viewer (when opened via share link) */}
+      {viewingShareId && (
+        <LocationShareViewer
+          shareId={viewingShareId}
+          onClose={() => {
+            setViewingShareId(null)
+            // Strip share param from URL without reload
+            const url = new URL(window.location.href)
+            url.searchParams.delete('share')
+            window.history.replaceState({}, '', url.toString())
+          }}
+        />
+      )}
 
       {/* Routing spinner */}
       <RoutingLoader />

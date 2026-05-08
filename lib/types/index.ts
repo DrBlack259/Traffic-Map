@@ -28,6 +28,9 @@ export interface Route {
   duration: number
   steps: RouteStep[]
   mode: TransportMode
+  index?: number          // alternative index
+  label?: string          // "Fastest", "Shortest", "Alternative"
+  trafficDelay?: number   // extra seconds from traffic
 }
 
 export type TransportMode = 'driving' | 'walking' | 'cycling'
@@ -74,4 +77,14 @@ export type POICategory =
 export interface MeasurePoint {
   lat: number
   lon: number
+}
+
+export interface ShareSession {
+  id: string
+  lat: number
+  lon: number
+  name: string
+  speed?: number
+  heading?: number
+  updatedAt: number
 }

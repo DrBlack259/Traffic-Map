@@ -1,14 +1,15 @@
 'use client'
 import { useState } from 'react'
-import { X, ChevronDown, ChevronUp, Car, PersonStanding, Bike, TriangleAlert, ArrowRight, Share2 } from 'lucide-react'
+import { X, ChevronDown, ChevronUp, Car, PersonStanding, Bike, TriangleAlert, ArrowRight, Share2, Plus } from 'lucide-react'
 import { useMapStore } from '@/lib/store/mapStore'
+import { useDirections } from '@/lib/hooks/useDirections'
 import { formatDistance, formatDuration } from '@/lib/utils/distance'
-import type { TransportMode } from '@/lib/types'
+import type { TransportMode, Route } from '@/lib/types'
 
 const MODES: { key: TransportMode; icon: React.ReactNode; label: string }[] = [
-  { key: 'driving',  icon: <Car size={16} />,           label: 'Drive' },
-  { key: 'walking',  icon: <PersonStanding size={16} />, label: 'Walk'  },
-  { key: 'cycling',  icon: <Bike size={16} />,           label: 'Cycle' },
+  { key: 'driving',  icon: <Car size={15} />,           label: 'Drive' },
+  { key: 'walking',  icon: <PersonStanding size={15} />, label: 'Walk'  },
+  { key: 'cycling',  icon: <Bike size={15} />,           label: 'Cycle' },
 ]
 
 const MANEUVER_ICONS: Record<string, string> = {
@@ -16,50 +17,85 @@ const MANEUVER_ICONS: Record<string, string> = {
   merge: '⤢', fork: '⑂', 'on ramp': '↗', 'off ramp': '↘',
 }
 
-function trafficLabel(incidents: number): { text: string; color: string } {
-  if (incidents === 0) return { text: 'Clear roads', color: 'text-green-400' }
-  if (incidents <= 2)  return { text: 'Light traffic', color: 'text-yellow-400' }
-  if (incidents <= 5)  return { text: 'Moderate traffic', color: 'text-orange-400' }
-  return { text: 'Heavy traffic', color: 'text-red-400' }
+function trafficInfo(incidents: number, delay?: number) {
+  const extra = delay ? Math.round(delay / 60) : 0
+  if (incidents === 0 && extra === 0) return { text: 'Clear roads', color: 'text-green-400' }
+  if (incidents <= 2 && extra < 5)   return { text: extra > 0 ? `+${extra} min delay` : 'Light traffic', color: 'text-yellow-400' }
+  if (incidents <= 5 && extra < 15)  return { text: `Moderate · +${extra} min`, color: 'text-orange-400' }
+  return { text: `Heavy traffic · +${extra} min`, color: 'text-red-400' }
+}
+
+function AlternativeTab({ route, selected, onClick }: { route: Route; selected: boolean; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex-1 flex flex-col items-center py-2.5 px-2 rounded-xl text-center transition-all ${
+        selected ? 'bg-white text-black' : 'bg-white/8 text-gray-400 hover:bg-white/12 hover:text-white'
+      }`}
+    >
+      <span className="text-xs font-semibold">{route.label}</span>
+      <span className={`text-sm font-bold mt-0.5 ${selected ? 'text-black' : 'text-white'}`}>
+        {formatDuration(route.duration)}
+      </span>
+      <span className="text-[10px] opacity-70">{formatDistance(route.distance)}</span>
+    </button>
+  )
 }
 
 export default function RouteCard() {
   const {
-    route, origin, destination,
+    route, routeAlternatives, selectedRouteIndex,
+    origin, destination, waypoints,
     transportMode, setTransportMode,
-    incidents, clearRoute, setSearchingFor,
+    incidents, clearRoute, setSearchingFor, setShowWaypointManager,
+    setIsSharing, shareSessionId, setShareSessionId, userLocation,
   } = useMapStore()
+  const { selectAlternative, fetchRoute } = useDirections()
   const [stepsOpen, setStepsOpen] = useState(false)
 
   if (!route) return null
 
-  const traffic = trafficLabel(incidents.length)
+  const traffic = trafficInfo(incidents.length, route.trafficDelay)
 
-  const share = () => {
-    if (!origin || !destination) return
-    const url = `${window.location.origin}?lat=${destination.lat}&lon=${destination.lon}&z=13`
+  const startSharing = async () => {
+    if (!userLocation) return
+    const id = Math.random().toString(36).slice(2, 10)
+    await fetch(`/api/share/${id}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lat: userLocation[0], lon: userLocation[1], name: 'My Location' }),
+    })
+    setShareSessionId(id)
+    setIsSharing(true)
+    const url = `${window.location.origin}?share=${id}`
     navigator.clipboard.writeText(url)
-    useMapStore.getState().setToast({ message: 'Route link copied!', type: 'success' })
+    useMapStore.getState().setToast({ message: 'Live location link copied! Sharing started.', type: 'success' })
   }
 
   return (
-    <div className="absolute bottom-0 left-0 right-0 z-[600] px-4 pb-6 animate-slide-up">
+    <div className="absolute bottom-0 left-0 right-0 z-[600] px-3 pb-5 animate-slide-up">
       <div className="glass rounded-3xl overflow-hidden shadow-2xl">
 
         {/* Route header */}
-        <div className="flex items-center gap-3 px-5 pt-5 pb-3 border-b border-white/8">
+        <div className="flex items-center gap-3 px-5 pt-4 pb-3 border-b border-white/8">
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2 text-xs text-gray-400 mb-1 truncate">
-              <span className="truncate">{origin?.name ?? 'My Location'}</span>
-              <ArrowRight size={12} className="flex-shrink-0" />
-              <span className="font-medium text-white truncate">{destination?.name}</span>
+            <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-1 truncate">
+              <span className="truncate max-w-[100px]">{origin?.name ?? 'My Location'}</span>
+              {waypoints.map(wp => (
+                <span key={wp.id} className="flex items-center gap-1">
+                  <ArrowRight size={10} />
+                  <span className="truncate max-w-[60px]">{wp.name}</span>
+                </span>
+              ))}
+              <ArrowRight size={10} className="flex-shrink-0" />
+              <span className="font-medium text-white truncate max-w-[120px]">{destination?.name}</span>
             </div>
             <div className="flex items-center gap-3">
               <span className="text-3xl font-bold text-white">{formatDuration(route.duration)}</span>
               <div>
                 <div className="text-sm text-gray-300">{formatDistance(route.distance)}</div>
                 <div className={`text-xs font-medium flex items-center gap-1 ${traffic.color}`}>
-                  {incidents.length > 0 && <TriangleAlert size={11} />}
+                  {incidents.length > 0 && <TriangleAlert size={10} />}
                   {traffic.text}
                 </div>
               </div>
@@ -67,7 +103,21 @@ export default function RouteCard() {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <button onClick={share} className="icon-btn w-9 h-9" title="Share route">
+            <button
+              onClick={() => setShowWaypointManager(true)}
+              className="icon-btn w-9 h-9"
+              title="Add stops"
+            >
+              <Plus size={14} />
+            </button>
+            <button
+              onClick={shareSessionId ? () => {
+                setIsSharing(false); setShareSessionId(null)
+                useMapStore.getState().setToast({ message: 'Location sharing stopped', type: 'info' })
+              } : startSharing}
+              className={`icon-btn w-9 h-9 ${shareSessionId ? 'text-green-400 bg-green-500/15' : ''}`}
+              title={shareSessionId ? 'Stop sharing' : 'Share live location'}
+            >
               <Share2 size={14} />
             </button>
             <button onClick={clearRoute} className="icon-btn w-9 h-9" title="Clear route">
@@ -76,16 +126,28 @@ export default function RouteCard() {
           </div>
         </div>
 
-        {/* Transport mode selector */}
-        <div className="flex gap-1 px-5 py-3 border-b border-white/8">
+        {/* Route alternatives */}
+        {routeAlternatives.length > 1 && (
+          <div className="flex gap-1.5 px-4 py-3 border-b border-white/8">
+            {routeAlternatives.map((alt, i) => (
+              <AlternativeTab
+                key={i}
+                route={alt}
+                selected={selectedRouteIndex === i}
+                onClick={() => selectAlternative(i)}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* Transport mode */}
+        <div className="flex gap-1 px-4 py-3 border-b border-white/8">
           {MODES.map(({ key, icon, label }) => (
             <button
               key={key}
-              onClick={() => setTransportMode(key)}
+              onClick={() => { setTransportMode(key); fetchRoute() }}
               className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-medium transition-all
-                ${transportMode === key
-                  ? 'bg-white text-black'
-                  : 'bg-white/8 text-gray-400 hover:text-white'}`}
+                ${transportMode === key ? 'bg-white text-black' : 'bg-white/8 text-gray-400 hover:text-white'}`}
             >
               {icon}{label}
             </button>
@@ -103,12 +165,14 @@ export default function RouteCard() {
           onClick={() => setStepsOpen(!stepsOpen)}
           className="w-full flex items-center justify-between px-5 py-3 hover:bg-white/5 transition-colors"
         >
-          <span className="text-sm font-medium text-gray-200">Turn-by-turn directions</span>
+          <span className="text-sm font-medium text-gray-200">
+            Turn-by-turn · {route.steps.length} steps
+          </span>
           {stepsOpen ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
         </button>
 
         {stepsOpen && (
-          <div className="max-h-56 overflow-y-auto border-t border-white/8">
+          <div className="max-h-52 overflow-y-auto border-t border-white/8">
             {route.steps.map((step, i) => (
               <div key={i} className="flex items-start gap-3 px-5 py-3 border-b border-white/5 last:border-0">
                 <span className="text-gray-400 text-base w-5 text-center flex-shrink-0 mt-0.5">

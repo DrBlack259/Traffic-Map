@@ -13,8 +13,11 @@ interface MapStore {
 
   origin: SearchResult | null
   destination: SearchResult | null
+  waypoints: SearchResult[]          // intermediate stops
   transportMode: TransportMode
-  route: Route | null
+  route: Route | null                // currently selected route
+  routeAlternatives: Route[]         // all computed alternatives
+  selectedRouteIndex: number
   isRoutingLoading: boolean
 
   trafficFlowVisible: boolean
@@ -28,17 +31,23 @@ interface MapStore {
   measureMode: boolean
   measurePoints: MeasurePoint[]
 
-  // UI flow state
-  searchingFor: 'destination' | 'origin' | null
+  // UI flow
+  searchingFor: 'destination' | 'origin' | 'waypoint' | null
   showLayerPicker: boolean
+  showWaypointManager: boolean
 
-  // Legacy compat (not rendered but referenced by old components)
+  // Live location sharing
+  shareSessionId: string | null
+  isSharing: boolean
+
+  toast: { message: string; type: 'error' | 'success' | 'info' } | null
+
+  // Legacy compat
   activeTab: 'map' | 'directions' | 'traffic' | 'places'
   sidebarOpen: boolean
   directionsOpen: boolean
 
-  toast: { message: string; type: 'error' | 'success' | 'info' } | null
-
+  // Actions
   setCenter: (center: [number, number]) => void
   setZoom: (zoom: number) => void
   setMapStyle: (style: MapStyle) => void
@@ -48,8 +57,13 @@ interface MapStore {
   setIsSearching: (v: boolean) => void
   setOrigin: (place: SearchResult | null) => void
   setDestination: (place: SearchResult | null) => void
+  addWaypoint: (place: SearchResult) => void
+  removeWaypoint: (id: string) => void
+  setWaypoints: (places: SearchResult[]) => void
   setTransportMode: (mode: TransportMode) => void
   setRoute: (route: Route | null) => void
+  setRouteAlternatives: (routes: Route[]) => void
+  setSelectedRouteIndex: (i: number) => void
   setIsRoutingLoading: (v: boolean) => void
   setTrafficFlowVisible: (v: boolean) => void
   setTrafficIncidentsVisible: (v: boolean) => void
@@ -61,8 +75,11 @@ interface MapStore {
   setMeasureMode: (v: boolean) => void
   addMeasurePoint: (pt: MeasurePoint) => void
   clearMeasurePoints: () => void
-  setSearchingFor: (v: 'destination' | 'origin' | null) => void
+  setSearchingFor: (v: 'destination' | 'origin' | 'waypoint' | null) => void
   setShowLayerPicker: (v: boolean) => void
+  setShowWaypointManager: (v: boolean) => void
+  setShareSessionId: (id: string | null) => void
+  setIsSharing: (v: boolean) => void
   setToast: (toast: { message: string; type: 'error' | 'success' | 'info' } | null) => void
   clearRoute: () => void
   setActiveTab: (tab: 'map' | 'directions' | 'traffic' | 'places') => void
@@ -82,8 +99,11 @@ export const useMapStore = create<MapStore>((set) => ({
 
   origin: null,
   destination: null,
+  waypoints: [],
   transportMode: 'driving',
   route: null,
+  routeAlternatives: [],
+  selectedRouteIndex: 0,
   isRoutingLoading: false,
 
   trafficFlowVisible: true,
@@ -99,11 +119,16 @@ export const useMapStore = create<MapStore>((set) => ({
 
   searchingFor: null,
   showLayerPicker: false,
+  showWaypointManager: false,
+
+  shareSessionId: null,
+  isSharing: false,
+
+  toast: null,
+
   activeTab: 'map',
   sidebarOpen: false,
   directionsOpen: false,
-
-  toast: null,
 
   setCenter: (center) => set({ center }),
   setZoom: (zoom) => set({ zoom }),
@@ -114,8 +139,13 @@ export const useMapStore = create<MapStore>((set) => ({
   setIsSearching: (isSearching) => set({ isSearching }),
   setOrigin: (origin) => set({ origin }),
   setDestination: (destination) => set({ destination }),
+  addWaypoint: (place) => set((s) => ({ waypoints: [...s.waypoints, place] })),
+  removeWaypoint: (id) => set((s) => ({ waypoints: s.waypoints.filter(w => w.id !== id) })),
+  setWaypoints: (waypoints) => set({ waypoints }),
   setTransportMode: (transportMode) => set({ transportMode }),
   setRoute: (route) => set({ route }),
+  setRouteAlternatives: (routeAlternatives) => set({ routeAlternatives }),
+  setSelectedRouteIndex: (selectedRouteIndex) => set({ selectedRouteIndex }),
   setIsRoutingLoading: (isRoutingLoading) => set({ isRoutingLoading }),
   setTrafficFlowVisible: (trafficFlowVisible) => set({ trafficFlowVisible }),
   setTrafficIncidentsVisible: (trafficIncidentsVisible) => set({ trafficIncidentsVisible }),
@@ -129,8 +159,15 @@ export const useMapStore = create<MapStore>((set) => ({
   clearMeasurePoints: () => set({ measurePoints: [] }),
   setSearchingFor: (searchingFor) => set({ searchingFor }),
   setShowLayerPicker: (showLayerPicker) => set({ showLayerPicker }),
+  setShowWaypointManager: (showWaypointManager) => set({ showWaypointManager }),
+  setShareSessionId: (shareSessionId) => set({ shareSessionId }),
+  setIsSharing: (isSharing) => set({ isSharing }),
   setToast: (toast) => set({ toast }),
-  clearRoute: () => set({ route: null, origin: null, destination: null, searchResults: [], searchQuery: '' }),
+  clearRoute: () => set({
+    route: null, routeAlternatives: [], selectedRouteIndex: 0,
+    origin: null, destination: null, waypoints: [],
+    searchResults: [], searchQuery: '',
+  }),
   setActiveTab: (activeTab) => set({ activeTab }),
   setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),
   setDirectionsOpen: (directionsOpen) => set({ directionsOpen }),
