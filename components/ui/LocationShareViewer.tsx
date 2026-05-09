@@ -57,7 +57,7 @@ export default function LocationShareViewer({ shareId, onClose }: Props) {
   const secondsAgo = location ? Math.round((Date.now() - location.updatedAt) / 1000) : null
 
   return (
-    <div className="absolute bottom-0 left-0 right-0 z-[600] px-3 pb-5 animate-slide-up">
+    <div className="absolute bottom-0 left-0 right-0 z-[600] px-3 bottom-card animate-slide-up">
       <div className="glass rounded-3xl overflow-hidden shadow-2xl">
         <div className="flex items-center gap-3 px-5 py-4">
           {/* Status dot */}

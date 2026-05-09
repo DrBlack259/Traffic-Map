@@ -91,7 +91,7 @@ export default function RouteCard() {
   }
 
   return (
-    <div className="absolute bottom-0 left-0 right-0 z-[600] px-3 pb-5 animate-slide-up">
+    <div className="absolute bottom-0 left-0 right-0 z-[600] px-3 bottom-card animate-slide-up">
       <div className="glass rounded-3xl overflow-hidden shadow-2xl">
 
         {/* Route header */}

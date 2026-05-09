@@ -12,6 +12,7 @@ import Toast from '@/components/ui/Toast'
 import WaypointManager from '@/components/ui/WaypointManager'
 import LocationShareViewer from '@/components/ui/LocationShareViewer'
 import AIAssistant from '@/components/ui/AIAssistant'
+import DesktopSidebar from '@/components/ui/DesktopSidebar'
 import Globe3DView from '@/components/map/Globe3DLoader'
 import { useMapStore } from '@/lib/store/mapStore'
 import { useTraffic } from '@/lib/hooks/useTraffic'
@@ -27,83 +28,104 @@ export default function MapApp() {
   const { fetchRoute } = useDirections()
   const [viewingShareId, setViewingShareId] = useState<string | null>(null)
 
-  // Auto-fetch route when both endpoints are set, or mode changes
   useEffect(() => {
     if (origin && destination) fetchRoute()
   }, [origin, destination, transportMode]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Read URL params and register service worker on load
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
-
-    const lat = params.get('lat')
-    const lon = params.get('lon')
-    const zoom = params.get('z')
+    const lat = params.get('lat'); const lon = params.get('lon'); const zoom = params.get('z')
     if (lat && lon) {
       useMapStore.getState().setCenter([parseFloat(lat), parseFloat(lon)])
       if (zoom) useMapStore.getState().setZoom(parseInt(zoom))
     }
-
     const shareId = params.get('share')
     if (shareId) setViewingShareId(shareId)
 
-    // Register service worker for tile caching and offline support
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js').catch(() => {})
-    }
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {})
   }, [])
 
+  // Mobile card visibility
   const showWhereToCard = !!userLocation && !route && !searchingFor
   const showRouteCard = !!route && !searchingFor
 
   return (
-    <div className="w-full h-screen relative overflow-hidden bg-[#0d0d0d]">
-      {/* Full-screen map — 2D Leaflet or 3D MapLibre globe */}
-      {viewMode === '3d' ? <Globe3DView /> : <MapView />}
+    // Desktop: flex-row (sidebar + map). Mobile: single column full-screen map.
+    <div className="w-full h-full flex flex-row bg-[#0d0d0d]">
 
-      {/* Floating top search bar */}
-      <FloatingSearchBar />
+      {/* Desktop left sidebar — hidden on mobile */}
+      <DesktopSidebar />
 
-      {/* Right-side map controls */}
-      <MapControls />
+      {/* Map area — fills remaining space */}
+      <div className="relative flex-1 min-w-0 h-full overflow-hidden">
 
-      {/* Layer style picker */}
-      {showLayerPicker && <LayerPicker />}
+        {/* Full-screen map */}
+        {viewMode === '3d' ? <Globe3DView /> : <MapView />}
 
-      {/* Full-screen search overlay */}
-      {searchingFor && <SearchOverlay />}
+        {/* Floating top search bar — mobile only */}
+        <div className="lg:hidden">
+          <FloatingSearchBar />
+        </div>
 
-      {/* Bottom: "Where to?" card after GPS fix */}
-      {showWhereToCard && <WhereToCard />}
+        {/* Map controls — always visible (desktop: right of map, mobile: right) */}
+        <MapControls />
 
-      {/* Bottom: Route summary card */}
-      {showRouteCard && <RouteCard />}
+        {/* Layer picker — mobile/small screen */}
+        {showLayerPicker && (
+          <div className="lg:hidden">
+            <LayerPicker />
+          </div>
+        )}
 
-      {/* Waypoint manager modal */}
-      {showWaypointManager && <WaypointManager />}
+        {/* Full-screen search overlay — mobile only */}
+        {searchingFor && (
+          <div className="lg:hidden">
+            <SearchOverlay />
+          </div>
+        )}
 
-      {/* AI Assistant panel */}
-      {showAIAssistant && !searchingFor && (
-        <AIAssistant onClose={() => setShowAIAssistant(false)} />
-      )}
+        {/* Mobile "Where to?" card */}
+        {showWhereToCard && (
+          <div className="lg:hidden">
+            <WhereToCard />
+          </div>
+        )}
 
-      {/* Live location viewer (when opened via share link) */}
-      {viewingShareId && (
-        <LocationShareViewer
-          shareId={viewingShareId}
-          onClose={() => {
-            setViewingShareId(null)
-            const url = new URL(window.location.href)
-            url.searchParams.delete('share')
-            window.history.replaceState({}, '', url.toString())
-          }}
-        />
-      )}
+        {/* Mobile route card */}
+        {showRouteCard && (
+          <div className="lg:hidden">
+            <RouteCard />
+          </div>
+        )}
 
-      {/* Routing spinner */}
-      <RoutingLoader />
+        {/* Waypoint manager modal — works on all sizes */}
+        {showWaypointManager && <WaypointManager />}
 
-      <Toast />
+        {/* AI Assistant — mobile overlay only (desktop uses sidebar) */}
+        {showAIAssistant && !searchingFor && (
+          <div className="lg:hidden">
+            <AIAssistant onClose={() => setShowAIAssistant(false)} />
+          </div>
+        )}
+
+        {/* Live location viewer */}
+        {viewingShareId && (
+          <LocationShareViewer
+            shareId={viewingShareId}
+            onClose={() => {
+              setViewingShareId(null)
+              const url = new URL(window.location.href)
+              url.searchParams.delete('share')
+              window.history.replaceState({}, '', url.toString())
+            }}
+          />
+        )}
+
+        {/* Routing spinner */}
+        <RoutingLoader />
+
+        <Toast />
+      </div>
     </div>
   )
 }

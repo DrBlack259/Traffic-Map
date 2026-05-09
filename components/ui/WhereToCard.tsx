@@ -13,7 +13,7 @@ export default function WhereToCard() {
   const { origin, transportMode, setTransportMode, setSearchingFor } = useMapStore()
 
   return (
-    <div className="absolute bottom-0 left-0 right-0 z-[600] px-4 pb-6 animate-slide-up">
+    <div className="absolute bottom-0 left-0 right-0 z-[600] px-4 bottom-card animate-slide-up">
       <div className="glass rounded-3xl p-5 shadow-2xl">
 
         {/* Origin label */}

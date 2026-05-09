@@ -74,7 +74,7 @@ export default function SearchOverlay() {
   return (
     <div className="absolute inset-0 z-[800] bg-[#0d0d0d] flex flex-col">
       {/* Header */}
-      <div className="flex items-center gap-3 px-4 pt-12 pb-3 border-b border-white/8">
+      <div className="flex items-center gap-3 px-4 pt-safe pb-3 border-b border-white/8">
         <button
           onClick={() => setSearchingFor(null)}
           className="icon-btn flex-shrink-0"

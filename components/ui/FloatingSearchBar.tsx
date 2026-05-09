@@ -12,7 +12,7 @@ export default function FloatingSearchBar() {
   const isPlaceholder = !destination
 
   return (
-    <div className="absolute top-4 left-4 right-4 z-[600] flex items-center gap-2">
+    <div className="absolute left-4 right-4 z-[600] flex items-center gap-2 pt-safe" style={{ top: 0 }}>
       <button
         onClick={() => setSearchingFor('destination')}
         className="flex-1 flex items-center gap-3 glass rounded-2xl px-4 py-3.5 shadow-2xl"
