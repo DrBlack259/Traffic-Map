@@ -1,6 +1,11 @@
 import { create } from 'zustand'
 import type { SearchResult, Route, TransportMode, MapStyle, TrafficIncident, POI, MeasurePoint } from '@/lib/types'
 
+function loadSaved(): SearchResult[] {
+  if (typeof window === 'undefined') return []
+  try { return JSON.parse(localStorage.getItem('traffic-map-saved') ?? '[]') } catch { return [] }
+}
+
 interface MapStore {
   center: [number, number]
   zoom: number
@@ -13,15 +18,16 @@ interface MapStore {
 
   origin: SearchResult | null
   destination: SearchResult | null
-  waypoints: SearchResult[]          // intermediate stops
+  waypoints: SearchResult[]
   transportMode: TransportMode
-  route: Route | null                // currently selected route
-  routeAlternatives: Route[]         // all computed alternatives
+  route: Route | null
+  routeAlternatives: Route[]
   selectedRouteIndex: number
   isRoutingLoading: boolean
 
   trafficFlowVisible: boolean
   trafficIncidentsVisible: boolean
+  heatmapVisible: boolean
   incidents: TrafficIncident[]
   incidentsLoading: boolean
 
@@ -31,10 +37,13 @@ interface MapStore {
   measureMode: boolean
   measurePoints: MeasurePoint[]
 
+  savedPlaces: SearchResult[]
+
   // UI flow
   searchingFor: 'destination' | 'origin' | 'waypoint' | null
   showLayerPicker: boolean
   showWaypointManager: boolean
+  showAIAssistant: boolean
 
   // Live location sharing
   shareSessionId: string | null
@@ -67,6 +76,7 @@ interface MapStore {
   setIsRoutingLoading: (v: boolean) => void
   setTrafficFlowVisible: (v: boolean) => void
   setTrafficIncidentsVisible: (v: boolean) => void
+  setHeatmapVisible: (v: boolean) => void
   setIncidents: (incidents: TrafficIncident[]) => void
   setIncidentsLoading: (v: boolean) => void
   setNearbyPlaces: (places: POI[]) => void
@@ -75,9 +85,12 @@ interface MapStore {
   setMeasureMode: (v: boolean) => void
   addMeasurePoint: (pt: MeasurePoint) => void
   clearMeasurePoints: () => void
+  savePlace: (place: SearchResult) => void
+  removeSavedPlace: (id: string) => void
   setSearchingFor: (v: 'destination' | 'origin' | 'waypoint' | null) => void
   setShowLayerPicker: (v: boolean) => void
   setShowWaypointManager: (v: boolean) => void
+  setShowAIAssistant: (v: boolean) => void
   setShareSessionId: (id: string | null) => void
   setIsSharing: (v: boolean) => void
   setToast: (toast: { message: string; type: 'error' | 'success' | 'info' } | null) => void
@@ -108,6 +121,7 @@ export const useMapStore = create<MapStore>((set) => ({
 
   trafficFlowVisible: true,
   trafficIncidentsVisible: true,
+  heatmapVisible: false,
   incidents: [],
   incidentsLoading: false,
 
@@ -117,9 +131,12 @@ export const useMapStore = create<MapStore>((set) => ({
   measureMode: false,
   measurePoints: [],
 
+  savedPlaces: [],
+
   searchingFor: null,
   showLayerPicker: false,
   showWaypointManager: false,
+  showAIAssistant: false,
 
   shareSessionId: null,
   isSharing: false,
@@ -149,6 +166,7 @@ export const useMapStore = create<MapStore>((set) => ({
   setIsRoutingLoading: (isRoutingLoading) => set({ isRoutingLoading }),
   setTrafficFlowVisible: (trafficFlowVisible) => set({ trafficFlowVisible }),
   setTrafficIncidentsVisible: (trafficIncidentsVisible) => set({ trafficIncidentsVisible }),
+  setHeatmapVisible: (heatmapVisible) => set({ heatmapVisible }),
   setIncidents: (incidents) => set({ incidents }),
   setIncidentsLoading: (incidentsLoading) => set({ incidentsLoading }),
   setNearbyPlaces: (nearbyPlaces) => set({ nearbyPlaces }),
@@ -157,9 +175,21 @@ export const useMapStore = create<MapStore>((set) => ({
   setMeasureMode: (measureMode) => set({ measureMode }),
   addMeasurePoint: (pt) => set((s) => ({ measurePoints: [...s.measurePoints, pt] })),
   clearMeasurePoints: () => set({ measurePoints: [] }),
+  savePlace: (place) => set((s) => {
+    if (s.savedPlaces.some(p => p.id === place.id)) return {}
+    const updated = [place, ...s.savedPlaces].slice(0, 50)
+    localStorage.setItem('traffic-map-saved', JSON.stringify(updated))
+    return { savedPlaces: updated }
+  }),
+  removeSavedPlace: (id) => set((s) => {
+    const updated = s.savedPlaces.filter(p => p.id !== id)
+    localStorage.setItem('traffic-map-saved', JSON.stringify(updated))
+    return { savedPlaces: updated }
+  }),
   setSearchingFor: (searchingFor) => set({ searchingFor }),
   setShowLayerPicker: (showLayerPicker) => set({ showLayerPicker }),
   setShowWaypointManager: (showWaypointManager) => set({ showWaypointManager }),
+  setShowAIAssistant: (showAIAssistant) => set({ showAIAssistant }),
   setShareSessionId: (shareSessionId) => set({ shareSessionId }),
   setIsSharing: (isSharing) => set({ isSharing }),
   setToast: (toast) => set({ toast }),
@@ -172,3 +202,8 @@ export const useMapStore = create<MapStore>((set) => ({
   setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),
   setDirectionsOpen: (directionsOpen) => set({ directionsOpen }),
 }))
+
+// Load saved places from localStorage after store is created (client-only)
+if (typeof window !== 'undefined') {
+  useMapStore.setState({ savedPlaces: loadSaved() })
+}

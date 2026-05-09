@@ -13,6 +13,7 @@ import IncidentMarkers from './IncidentMarkers'
 import POIMarkers from './POIMarkers'
 import MeasureTool from './MeasureTool'
 import MapControls from '../controls/MapControls'
+import HeatmapLayer from './HeatmapLayer'
 
 const TILE_LAYERS = {
   dark: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
@@ -108,7 +109,7 @@ function MapSyncController() {
 }
 
 export default function MapView() {
-  const { center, zoom, mapStyle } = useMapStore()
+  const { center, zoom, mapStyle, heatmapVisible } = useMapStore()
 
   return (
     <div className="w-full h-full relative">
@@ -132,6 +133,7 @@ export default function MapView() {
         <IncidentMarkers />
         <POIMarkers />
         <MeasureTool />
+        <HeatmapLayer visible={heatmapVisible} />
         <MapEventHandler />
         <MapSyncController />
       </MapContainer>

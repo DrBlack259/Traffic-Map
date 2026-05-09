@@ -1,6 +1,6 @@
 'use client'
 import { useRef, useEffect, useState } from 'react'
-import { ArrowLeft, Search, X, MapPin, Clock, Navigation } from 'lucide-react'
+import { ArrowLeft, Search, X, MapPin, Clock, Navigation, Bookmark } from 'lucide-react'
 import { useMapStore } from '@/lib/store/mapStore'
 import { useSearch } from '@/lib/hooks/useSearch'
 import type { SearchResult } from '@/lib/types'
@@ -22,6 +22,7 @@ export default function SearchOverlay() {
     isSearching,
     setDestination, setOrigin,
     userLocation, origin,
+    savedPlaces,
   } = useMapStore()
 
   const { search } = useSearch()
@@ -117,6 +118,32 @@ export default function SearchOverlay() {
               <div className="text-xs text-gray-500">Use your current location</div>
             </div>
           </button>
+        )}
+
+        {/* Saved places */}
+        {!searchQuery && savedPlaces.length > 0 && (
+          <>
+            <div className="px-5 py-2 text-xs text-gray-500 uppercase tracking-wider font-medium">
+              Saved
+            </div>
+            {savedPlaces.slice(0, 3).map((r) => (
+              <button
+                key={r.id}
+                onClick={() => handleSelect(r)}
+                className="w-full flex items-center gap-4 px-5 py-4 hover:bg-white/5 transition-colors"
+              >
+                <div className="w-10 h-10 rounded-full bg-yellow-500/15 flex items-center justify-center flex-shrink-0">
+                  <Bookmark size={16} className="text-yellow-400" />
+                </div>
+                <div className="text-left min-w-0">
+                  <div className="text-sm font-medium text-white truncate">{r.name}</div>
+                  <div className="text-xs text-gray-500 truncate">
+                    {r.displayName.split(',').slice(1, 3).join(',').trim()}
+                  </div>
+                </div>
+              </button>
+            ))}
+          </>
         )}
 
         {/* Section header */}

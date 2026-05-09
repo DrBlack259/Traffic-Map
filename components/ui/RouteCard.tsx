@@ -1,8 +1,9 @@
 'use client'
 import { useState } from 'react'
-import { X, ChevronDown, ChevronUp, Car, PersonStanding, Bike, TriangleAlert, ArrowRight, Share2, Plus } from 'lucide-react'
+import { X, ChevronDown, ChevronUp, Car, PersonStanding, Bike, TriangleAlert, ArrowRight, Share2, Plus, Volume2, VolumeX, Bookmark } from 'lucide-react'
 import { useMapStore } from '@/lib/store/mapStore'
 import { useDirections } from '@/lib/hooks/useDirections'
+import { useVoiceNavigation } from '@/lib/hooks/useVoiceNavigation'
 import { formatDistance, formatDuration } from '@/lib/utils/distance'
 import type { TransportMode, Route } from '@/lib/types'
 
@@ -23,6 +24,17 @@ function trafficInfo(incidents: number, delay?: number) {
   if (incidents <= 2 && extra < 5)   return { text: extra > 0 ? `+${extra} min delay` : 'Light traffic', color: 'text-yellow-400' }
   if (incidents <= 5 && extra < 15)  return { text: `Moderate · +${extra} min`, color: 'text-orange-400' }
   return { text: `Heavy traffic · +${extra} min`, color: 'text-red-400' }
+}
+
+function rideShareEstimate(distanceM: number, durationS: number) {
+  const km = distanceM / 1000
+  const min = durationS / 60
+  const uber = 2.0 + km * 1.5 + min * 0.25
+  const lyft = 1.5 + km * 1.2 + min * 0.22
+  return {
+    uber: `$${uber.toFixed(0)}–$${(uber * 1.3).toFixed(0)}`,
+    lyft: `$${lyft.toFixed(0)}–$${(lyft * 1.3).toFixed(0)}`,
+  }
 }
 
 function AlternativeTab({ route, selected, onClick }: { route: Route; selected: boolean; onClick: () => void }) {
@@ -49,13 +61,19 @@ export default function RouteCard() {
     transportMode, setTransportMode,
     incidents, clearRoute, setSearchingFor, setShowWaypointManager,
     setIsSharing, shareSessionId, setShareSessionId, userLocation,
+    savePlace, removeSavedPlace, savedPlaces,
   } = useMapStore()
   const { selectAlternative, fetchRoute } = useDirections()
   const [stepsOpen, setStepsOpen] = useState(false)
+  const [voiceOn, setVoiceOn] = useState(false)
+
+  useVoiceNavigation(voiceOn)
 
   if (!route) return null
 
   const traffic = trafficInfo(incidents.length, route.trafficDelay)
+  const estimates = route.mode === 'driving' ? rideShareEstimate(route.distance, route.duration) : null
+  const isDestSaved = destination ? savedPlaces.some(p => p.id === destination.id) : false
 
   const startSharing = async () => {
     if (!userLocation) return
@@ -100,6 +118,14 @@ export default function RouteCard() {
                 </div>
               </div>
             </div>
+
+            {/* Ride-share estimates */}
+            {estimates && (
+              <div className="flex items-center gap-3 mt-1.5">
+                <span className="text-[11px] text-gray-500">Uber ~{estimates.uber}</span>
+                <span className="text-[11px] text-gray-500">Lyft ~{estimates.lyft}</span>
+              </div>
+            )}
           </div>
 
           <div className="flex flex-col gap-1.5">
@@ -110,6 +136,22 @@ export default function RouteCard() {
             >
               <Plus size={14} />
             </button>
+            <button
+              onClick={() => setVoiceOn(!voiceOn)}
+              className={`icon-btn w-9 h-9 ${voiceOn ? 'text-blue-400 bg-blue-500/15' : ''}`}
+              title={voiceOn ? 'Mute voice' : 'Voice navigation'}
+            >
+              {voiceOn ? <Volume2 size={14} /> : <VolumeX size={14} />}
+            </button>
+            {destination && (
+              <button
+                onClick={() => isDestSaved ? removeSavedPlace(destination.id) : savePlace(destination)}
+                className={`icon-btn w-9 h-9 ${isDestSaved ? 'text-yellow-400 bg-yellow-500/15' : ''}`}
+                title={isDestSaved ? 'Remove bookmark' : 'Save place'}
+              >
+                <Bookmark size={14} />
+              </button>
+            )}
             <button
               onClick={shareSessionId ? () => {
                 setIsSharing(false); setShareSessionId(null)
