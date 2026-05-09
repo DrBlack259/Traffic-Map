@@ -12,6 +12,7 @@ import Toast from '@/components/ui/Toast'
 import WaypointManager from '@/components/ui/WaypointManager'
 import LocationShareViewer from '@/components/ui/LocationShareViewer'
 import AIAssistant from '@/components/ui/AIAssistant'
+import Globe3DView from '@/components/map/Globe3DLoader'
 import { useMapStore } from '@/lib/store/mapStore'
 import { useTraffic } from '@/lib/hooks/useTraffic'
 import { useDirections } from '@/lib/hooks/useDirections'
@@ -20,7 +21,7 @@ export default function MapApp() {
   const {
     userLocation, route, searchingFor, origin, destination,
     showLayerPicker, transportMode, showWaypointManager,
-    showAIAssistant, setShowAIAssistant,
+    showAIAssistant, setShowAIAssistant, viewMode,
   } = useMapStore()
   useTraffic()
   const { fetchRoute } = useDirections()
@@ -57,8 +58,8 @@ export default function MapApp() {
 
   return (
     <div className="w-full h-screen relative overflow-hidden bg-[#0d0d0d]">
-      {/* Full-screen map */}
-      <MapView />
+      {/* Full-screen map — 2D Leaflet or 3D MapLibre globe */}
+      {viewMode === '3d' ? <Globe3DView /> : <MapView />}
 
       {/* Floating top search bar */}
       <FloatingSearchBar />

@@ -40,6 +40,7 @@ interface MapStore {
   savedPlaces: SearchResult[]
 
   // UI flow
+  viewMode: '2d' | '3d'
   searchingFor: 'destination' | 'origin' | 'waypoint' | null
   showLayerPicker: boolean
   showWaypointManager: boolean
@@ -87,6 +88,7 @@ interface MapStore {
   clearMeasurePoints: () => void
   savePlace: (place: SearchResult) => void
   removeSavedPlace: (id: string) => void
+  setViewMode: (mode: '2d' | '3d') => void
   setSearchingFor: (v: 'destination' | 'origin' | 'waypoint' | null) => void
   setShowLayerPicker: (v: boolean) => void
   setShowWaypointManager: (v: boolean) => void
@@ -133,6 +135,7 @@ export const useMapStore = create<MapStore>((set) => ({
 
   savedPlaces: [],
 
+  viewMode: '2d',
   searchingFor: null,
   showLayerPicker: false,
   showWaypointManager: false,
@@ -186,6 +189,7 @@ export const useMapStore = create<MapStore>((set) => ({
     localStorage.setItem('traffic-map-saved', JSON.stringify(updated))
     return { savedPlaces: updated }
   }),
+  setViewMode: (viewMode) => set({ viewMode }),
   setSearchingFor: (searchingFor) => set({ searchingFor }),
   setShowLayerPicker: (showLayerPicker) => set({ showLayerPicker }),
   setShowWaypointManager: (showWaypointManager) => set({ showWaypointManager }),
